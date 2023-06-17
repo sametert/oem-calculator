@@ -1,4 +1,4 @@
-//Storege Controller
+//Storage Controller
 const StorageController = (function() {
 
 })();
@@ -51,11 +51,24 @@ const ProductController = (function() {
 
             data.totalPrice = total;
             return data.totalPrice;
+        },
+        getProductById: function(id) {
+            let product = null;
+
+           data.products.forEach(function(prd){
+                if(prd.id == id) {
+                    product = prd;
+                }
+           });
+           return product;
+        },
+        setCurrentProduct: function(prd) {
+            data.selectedProduct = prd;
+        },
+        getCurrentProduct: function() {
+            return data.selectedProduct;
         }
-
-
     }
-
 })();
 
 
@@ -71,7 +84,10 @@ const UIController = (function() {
         productPrice: "productPrice",
         productCard: "productCard",
         totalTL: "total-tl",
-        totalUSD: "total-usd"
+        totalUSD: "total-usd",
+        updateBtn: "updateBtn",
+        deleteBtn: "deleteBtn",
+        cancelBtn: "cancelBtn"
     }
 
 
@@ -85,14 +101,13 @@ const UIController = (function() {
                     <td class="text-start">${prd.id}</td>
                     <td>${prd.name}</td>
                     <td>${prd.price}</td>
-                    <td class="text-end">
-                        <button type="submit" class="btn btn-warning btn-sm">
-                            <i class="far fa-edit"></i>
-                        </button>
+                    <td class="text-end ">
+                        <i class="far fa-edit"></i> 
                     </td>
                 </tr>`;
             });
 
+            console.log("first")
             document.getElementById(Selectors.productsList).innerHTML = html;
 
         },
@@ -108,13 +123,12 @@ const UIController = (function() {
                 <td class="text-start">${prd.id}</td>
                 <td>${prd.name}</td>
                 <td>${prd.price}</td>
-                <td class="text-end">
-                    <button type="submit" class="btn btn-warning btn-sm">
-                        <i class="far fa-edit"></i>
-                    </button>
+                <td class="text-end ">
+                    <i class="far fa-edit"></i>
                 </td>
             </tr>`;
 
+            console.log("bir")
             document.getElementById(Selectors.productsList).insertAdjacentHTML("beforeend", item);
         },
         clearInputs: function() {
@@ -128,6 +142,34 @@ const UIController = (function() {
         showTotal: function(total) {
             document.getElementById(Selectors.totalTL).innerHTML = total;
             document.getElementById(Selectors.totalUSD).innerHTML = parseInt(total / 23);
+        },
+        addProductToForm: function() {
+            const selectedProduct = ProductController.getCurrentProduct();
+            document.getElementById(Selectors.productName).value = selectedProduct.name;
+            document.getElementById(Selectors.productPrice).value = selectedProduct.price;
+        },
+        addingState : function() {
+            UIController.clearInputs();
+            document.getElementById(Selectors.addButton).style.display = "inline";
+            document.getElementById(Selectors.updateBtn).style.display = "none";
+            document.getElementById(Selectors.deleteBtn).style.display = "none";
+            document.getElementById(Selectors.cancelBtn).style.display = "none";
+        },
+        editState: function(tr) {
+
+            const parent = tr.parentElement;
+            //tüm bg-warning siler sonra bg-warning ekler
+            for(let i = 0; i <parent.children.length; i++) {
+                parent.children[i].classList.remove("bg-warning");
+            }
+
+
+            tr.classList.add("bg-warning");
+
+            document.getElementById(Selectors.addButton).style.display = "none";
+            document.getElementById(Selectors.updateBtn).style.display = "inline";
+            document.getElementById(Selectors.deleteBtn).style.display = "inline";
+            document.getElementById(Selectors.cancelBtn).style.display = "inline";
         }
     }
 
@@ -140,12 +182,15 @@ const UIController = (function() {
 //App Controller
 const App = (function(ProductCtrl, UICtrl) {
 
-    const UISelectors = UIController.getSelectors();
+    const UISelectors = UICtrl.getSelectors();
 
     // Load Event Listeners
     const loadEventListeners = function() {
         //add product event
         document.getElementById(UISelectors.addButton).addEventListener("click", productAddSubmit);
+
+        //edit product
+        document.getElementById(UISelectors.productsList).addEventListener("click", productEditSubmit);
     }
 
     const productAddSubmit = function(e) {
@@ -176,14 +221,39 @@ const App = (function(ProductCtrl, UICtrl) {
         }
     }
 
+
+    const productEditSubmit = function(e) {
+        e.preventDefault();
+
+        if(e.target.classList.contains("fa-edit")) {
+            const id = e.target.parentElement.parentElement.children[0].textContent;
+
+            //get selected product
+            const product = ProductCtrl.getProductById(id);
+
+            //set current product
+            ProductCtrl.setCurrentProduct(product);
+
+            //add product to UI
+            UICtrl.addProductToForm();
+
+            const tr = e.target.parentElement.parentElement;
+            UICtrl.editState(tr);
+
+        }
+    }
+
     //uygulama çalıştıktan hemen sonra bu modül devreye girmesi gerekiyor.
     return {
         init: function() {
+            UICtrl.addingState();
+           
             const products = ProductCtrl.getProducts();
 
             if (products.length == 0) {
                 UICtrl.hideCard();
             } else {
+                //var olan product arrayine direkt ekrana yazdırır
                 UICtrl.createProductList(products);
             }
 
