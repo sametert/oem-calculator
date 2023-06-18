@@ -3,8 +3,6 @@ const StorageController = (function() {
 
 })();
 
-
-
 //Product Controller
 const ProductController = (function() {
 
@@ -67,6 +65,24 @@ const ProductController = (function() {
         },
         getCurrentProduct: function() {
             return data.selectedProduct;
+        },
+        updateProduct : function(productName,productPrice) {
+            let product = null;
+            data.products.forEach(function(prd){
+                if(prd.id == data.selectedProduct.id) {
+                    prd.name  = productName;
+                    prd.price = parseFloat(productPrice);
+                    product = prd;
+                }
+            });
+            return product;
+        },
+        deleteProduct: function(product) {
+            data.products.forEach(function(prd,index){
+                if(prd.id == product.id) {
+                    data.products.splice(index,1);
+                }
+            });
         }
     }
 })();
@@ -79,6 +95,7 @@ const UIController = (function() {
 
     const Selectors = {
         productsList: "item-list",
+        productListItems: "#item-list tr",
         addButton: "addBtn",
         productName: "productName",
         productPrice: "productPrice",
@@ -101,15 +118,13 @@ const UIController = (function() {
                     <td class="text-start">${prd.id}</td>
                     <td>${prd.name}</td>
                     <td>${prd.price}</td>
-                    <td class="text-end ">
+                    <td class="text-end" style="cursor: pointer;">
                         <i class="far fa-edit"></i> 
                     </td>
                 </tr>`;
             });
 
-            console.log("first")
             document.getElementById(Selectors.productsList).innerHTML = html;
-
         },
         getSelectors: function() {
             return Selectors;
@@ -123,12 +138,11 @@ const UIController = (function() {
                 <td class="text-start">${prd.id}</td>
                 <td>${prd.name}</td>
                 <td>${prd.price}</td>
-                <td class="text-end ">
+                <td class="text-end" style="cursor: pointer;">
                     <i class="far fa-edit"></i>
                 </td>
             </tr>`;
 
-            console.log("bir")
             document.getElementById(Selectors.productsList).insertAdjacentHTML("beforeend", item);
         },
         clearInputs: function() {
@@ -138,7 +152,6 @@ const UIController = (function() {
         hideCard: function() {
             document.getElementById(Selectors.productCard).style.display = "none";
         },
-
         showTotal: function(total) {
             document.getElementById(Selectors.totalTL).innerHTML = total;
             document.getElementById(Selectors.totalUSD).innerHTML = parseInt(total / 23);
@@ -149,6 +162,7 @@ const UIController = (function() {
             document.getElementById(Selectors.productPrice).value = selectedProduct.price;
         },
         addingState : function() {
+            UIController.clearWarnings();
             UIController.clearInputs();
             document.getElementById(Selectors.addButton).style.display = "inline";
             document.getElementById(Selectors.updateBtn).style.display = "none";
@@ -156,23 +170,44 @@ const UIController = (function() {
             document.getElementById(Selectors.cancelBtn).style.display = "none";
         },
         editState: function(tr) {
-
-            const parent = tr.parentElement;
-            //tüm bg-warning siler sonra bg-warning ekler
-            for(let i = 0; i <parent.children.length; i++) {
-                parent.children[i].classList.remove("bg-warning");
-            }
-
-
             tr.classList.add("bg-warning");
 
             document.getElementById(Selectors.addButton).style.display = "none";
             document.getElementById(Selectors.updateBtn).style.display = "inline";
             document.getElementById(Selectors.deleteBtn).style.display = "inline";
             document.getElementById(Selectors.cancelBtn).style.display = "inline";
+        },
+        updateProduct: function(currentProduct) {
+            let updatedItem = null;
+
+            let items = document.querySelectorAll(Selectors.productListItems);
+            items.forEach(function(item) {
+                if(item.classList.contains("bg-warning")) {
+                    item.children[1].textContent = currentProduct.name;
+                    item.children[2].textContent = currentProduct.price;
+                    updatedItem = item;
+                }
+            });
+
+            return updatedItem;
+        },
+        clearWarnings: function() {
+            const items = document.querySelectorAll(Selectors.productListItems);
+            items.forEach(function(item) {
+                if(item.classList.contains("bg-warning")) {
+                    item.classList.remove("bg-warning");
+                }
+            });
+        },
+        deleteProduct: function() {
+            let items = document.querySelectorAll(Selectors.productListItems);
+            items.forEach(function(item) {
+                if(item.classList.contains("bg-warning")) {
+                    item.remove();
+                }
+            });
         }
     }
-
 })();
 
 
@@ -189,8 +224,17 @@ const App = (function(ProductCtrl, UICtrl) {
         //add product event
         document.getElementById(UISelectors.addButton).addEventListener("click", productAddSubmit);
 
-        //edit product
-        document.getElementById(UISelectors.productsList).addEventListener("click", productEditSubmit);
+        //edit product click
+        document.getElementById(UISelectors.productsList).addEventListener("click", productEditClick);
+
+        //edit product submit
+        document.getElementById(UISelectors.updateBtn).addEventListener("click", editProductSubmit);
+
+        //cancel button click
+        document.getElementById(UISelectors.cancelBtn).addEventListener("click", cancelUpdate);
+
+        //delete product submit
+        document.getElementById(UISelectors.deleteBtn).addEventListener("click", deleteProductSubmit);
     }
 
     const productAddSubmit = function(e) {
@@ -209,20 +253,16 @@ const App = (function(ProductCtrl, UICtrl) {
             //get total
             const total = ProductCtrl.getTotal();
 
-
             //show total
             UICtrl.showTotal(total);
 
-
             //clear inputs
             UICtrl.clearInputs();
-
-
         }
     }
 
 
-    const productEditSubmit = function(e) {
+    const productEditClick = function(e) {
         e.preventDefault();
 
         if(e.target.classList.contains("fa-edit")) {
@@ -234,13 +274,73 @@ const App = (function(ProductCtrl, UICtrl) {
             //set current product
             ProductCtrl.setCurrentProduct(product);
 
+            UICtrl.clearWarnings();
+
             //add product to UI
             UICtrl.addProductToForm();
 
             const tr = e.target.parentElement.parentElement;
             UICtrl.editState(tr);
-
         }
+    }
+
+
+    const editProductSubmit = function(e) {
+        e.preventDefault();
+
+        const productName = document.getElementById(UISelectors.productName).value;
+        const productPrice = document.getElementById(UISelectors.productPrice).value;
+
+        if(productName !== "" && productPrice !== "") {
+            //update product
+            const updateProduct = ProductCtrl.updateProduct(productName,productPrice);
+
+            //update ui
+            const item = UICtrl.updateProduct(updateProduct);
+
+            //get total
+            const total = ProductCtrl.getTotal();
+
+            //show total
+            UICtrl.showTotal(total);
+
+            UICtrl.addingState();  
+        }
+    }
+
+
+    const cancelUpdate = function(e) {
+        e.preventDefault();
+
+        UICtrl.addingState();
+        UICtrl.clearWarnings();
+    }
+
+
+    const deleteProductSubmit = function(e) {
+        e.preventDefault();
+
+        //get selected product
+        const selectedProduct = ProductCtrl.getCurrentProduct();
+
+        //delete product
+        ProductCtrl.deleteProduct(selectedProduct);
+
+        //delete ui
+        UICtrl.deleteProduct();
+
+        //get total
+        const total = ProductCtrl.getTotal();
+
+        //show total
+        UICtrl.showTotal(total);
+
+        UICtrl.addingState();  
+
+        if(total == 0) {
+            UICtrl.hideCard();
+        }
+
     }
 
     //uygulama çalıştıktan hemen sonra bu modül devreye girmesi gerekiyor.
